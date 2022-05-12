@@ -1,11 +1,9 @@
-from ast import arg
 import csv
 import sys
 import json
 import logging
 import psycopg2
 import argparse
-import pandas as pd
 import datetime as dt
 from datetime import datetime
 from psycopg2.extras import execute_batch

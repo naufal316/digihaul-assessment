@@ -1,9 +1,13 @@
+from ast import arg
 import csv
 import sys
 import json
 import logging
 import psycopg2
+import argparse
 import pandas as pd
+import datetime as dt
+from datetime import datetime
 from psycopg2.extras import execute_batch
 from model.schemas import return_schema
 from model.models import GpsDataTable, ShipmentBookingTable
@@ -99,7 +103,7 @@ def create_table_if_not_exists(table_name, connection):
     table_schema = return_schema(table_name)
     ddl_syntax = "create table {0} (".format(
         table_name) + ", ".join(["{0} {1}".format(i, j) for (i, j) in table_schema.items()]) + ");"
-    logging.info("DDL for {0}: \n{1}".format(ddl_syntax))
+    logging.info("DDL for {0}: \n{1}".format(table_name, ddl_syntax))
     with psycopg2.connect(**connection) as conn:
         with conn.cursor() as cursor:
             cursor.execute(ddl_syntax)
@@ -113,16 +117,25 @@ def run_sql_query(query, connection):
             cursor.execute(query)
             data = cursor.fetchall()
             colnames = [desc[0] for desc in cursor.description]
+            new_row = []
             for row in data:
-                result_set.append(dict(zip(colnames, row)))
-    return json.dumps({"result": result_set})
+                for col_ in row:
+                    new_col = col_
+                    if isinstance(col_, datetime) is True:
+                        new_col = str(col_)
+                    elif isinstance(col_, dt.date) is True:
+                        new_col = str(col_)
+                    new_row.append(new_col)
+                result_set.append(dict(zip(colnames, new_row)))
+    return json.dumps(result_set, indent=2)
 
 
 def run_service_request(service_type):
     if service_type == "shipment_overview":
-        return run_sql_query(shipments_overview_query, connection_details)
+        print(run_sql_query(shipments_overview_query, connection_details))
     elif service_type == "weekly_percentage":
-        return run_sql_query(weekly_percentage_delivery, connection_details)
+        print(run_sql_query(weekly_percentage_delivery, connection_details))
+    return None
 
 
 def write_to_database_table(dataset, table_name, connection) -> None:
@@ -130,7 +143,7 @@ def write_to_database_table(dataset, table_name, connection) -> None:
         truncate_table(table_name, connection)
         process_data_to_psql(dataset, table_name, connection)
     else:
-        create_table_if_not_exists(table_name)
+        create_table_if_not_exists(table_name, connection)
         process_data_to_psql(dataset, table_name, connection)
     return None
 
@@ -155,13 +168,20 @@ def write_to_database_table_batch(dataset, table_name, connection) -> None:
 
 def main():
 
-    print(run_service_request("weekly_percentage"))
+    app = argparse.ArgumentParser()
+    app.add_argument("--run-type")
+    app.add_argument("--service-type")
 
-    # gps_data = read_dataset("datasets/gps_data.csv")
-    # shipment_booking_data = read_dataset("datasets/shipment_bookings.csv")
+    args = app.parse_args()
+    if args.run_type == "ingestion":
+        gps_data = read_dataset("datasets/gps_data.csv")
+        shipment_booking_data = read_dataset("datasets/shipment_bookings.csv")
 
-    # write_to_database_table(gps_data, "gps_data", connection_details)
-    # write_to_database_table(shipment_booking_data, "shipment_bookings", connection_details)
+        write_to_database_table(gps_data, "gps_data", connection_details)
+        write_to_database_table(shipment_booking_data,
+                                "shipment_bookings", connection_details)
+    elif args.run_type == "service_run":
+        print(run_service_request(args.service_type))
 
 
 if __name__ == "__main__":

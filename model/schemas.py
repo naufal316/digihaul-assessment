@@ -2,8 +2,8 @@ def return_schema(table_name):
     if table_name == "gps_data":
         return {
             "id": "serial",
-            "latitude": "double",
-            "longitude": "double",
+            "latitude": "numeric",
+            "longitude": "numeric",
             "location_time": "timestamp",
             "shipment_number": "character varying"
 
@@ -19,8 +19,8 @@ def return_schema(table_name):
             "scheduled_delivery_date": "date",
             "first_collection_schedule_earliest": "timestamp",
             "first_collection_schedule_latest": "timestamp",
-            "last_collection_schedule_earliest": "timestamp",
-            "last_collection_schedule_latest": "timestamp",
+            "last_delivery_schedule_earliest": "timestamp",
+            "last_delivery_schedule_latest": "timestamp",
             "vehicle_type": "character varying"
         }
         
